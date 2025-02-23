@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Game</title>
+  <style>
+    /* Reset default margin/padding */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #1e3c72, #2a5298);
+      font-family: sans-serif;
+      color: #fff;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    #gameContainer {
+      position: relative;
+      text-align: center;
+    }
+
+    #gameCanvas {
+      background-color: #111;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+      border: 2px solid #fff;
+      display: block;
+      margin: 0 auto;
+    }
+
+    #status {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 24px;
+      background-color: rgba(0, 0, 0, 0.6);
+      padding: 20px 30px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    #instructions {
+      margin-top: 10px;
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake Game</h1>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    <div id="status"></div>
+  </div>
+  <div id="instructions">
+    <p>Press <strong>SPACE</strong> to start/restart the game.</p>
+    <p>Use <strong>W, A, S, D</strong> to control the snake.</p>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const statusDisplay = document.getElementById("status");
+
+    // Configuration
+    const tileSize = 20;
+    const tileCount = 30; // 600 / 20 = 30
+    let speed = 150; // milliseconds per frame
+
+    // Game state
+    let snake = [];
+    let snakeLength = 3;
+    let direction = { x: 0, y: 0 };
+    let food = { x: 0, y: 0 };
+    let gameLoop = null;
+    let isGameRunning = false;
+
+    // Start or restart the game
+    function startGame() {
+      // Initialize snake in the center
+      snake = [];
+      const center = tileCount / 2;
+      for (let i = 0; i < snakeLength; i++) {
+        snake.push({ x: center, y: center });
+      }
+
+      // Randomize initial direction
+      const possibleDirections = [
+        { x: 1, y: 0 },  // right
+        { x: -1, y: 0 }, // left
+        { x: 0, y: 1 },  // down
+        { x: 0, y: -1 }  // up
+      ];
+      direction = possibleDirections[Math.floor(Math.random() * 4)];
+
+      // Place food
+      placeFood();
+
+      // Hide status message
+      statusDisplay.style.display = "none";
+
+      // Run the game loop
+      if (gameLoop) {
+        clearInterval(gameLoop);
+      }
+      gameLoop = setInterval(updateGame, speed);
+      isGameRunning = true;
+    }
+
+    // Place food at a random position
+    function placeFood() {
+      food.x = Math.floor(Math.random() * tileCount);
+      food.y = Math.floor(Math.random() * tileCount);
+    }
+
+    // Handle game logic and rendering each frame
+    function updateGame() {
+      // Move snake head in the current direction
+      const head = { 
+        x: snake[0].x + direction.x, 
+        y: snake[0].y + direction.y 
+      };
+
+      // Wrap around boundaries or end game on collision with walls?
+      // The prompt didn't specify wrapping, let's do a simple boundary collision:
+      if (
+        head.x < 0 ||
+        head.x >= tileCount ||
+        head.y < 0 ||
+        head.y >= tileCount
+      ) {
+        endGame();
+        return;
+      }
+
+      // Check collision with itself
+      for (let i = 0; i < snake.length; i++) {
+        if (snake[i].x === head.x && snake[i].y === head.y) {
+          endGame();
+          return;
+        }
+      }
+
+      // Insert new head
+      snake.unshift(head);
+
+      // Check if we got the food
+      if (head.x === food.x && head.y === food.y) {
+        // Increase length by not removing tail
+        placeFood();
+      } else {
+        // Remove the tail
+        snake.pop();
+      }
+
+      // Draw everything
+      drawGame();
+    }
+
+    // Draw the snake and the food
+    function drawGame() {
+      // Clear the canvas
+      ctx.fillStyle = "#111";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw the food
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x * tileSize, food.y * tileSize, tileSize, tileSize);
+
+      // Draw the snake
+      ctx.fillStyle = "#0f0";
+      snake.forEach((segment, index) => {
+        ctx.fillRect(segment.x * tileSize, segment.y * tileSize, tileSize, tileSize);
+      });
+    }
+
+    // End game logic
+    function endGame() {
+      clearInterval(gameLoop);
+      isGameRunning = false;
+      statusDisplay.textContent = "Game Over! Press SPACE to restart.";
+      statusDisplay.style.display = "block";
+    }
+
+    // Listen for key presses
+    document.addEventListener("keydown", (e) => {
+      if (!isGameRunning && e.code === "Space") {
+        startGame();
+      }
+
+      if (isGameRunning) {
+        switch (e.key.toLowerCase()) {
+          case "w":
+            if (direction.y !== 1) {
+              direction = { x: 0, y: -1 };
+            }
+            break;
+          case "s":
+            if (direction.y !== -1) {
+              direction = { x: 0, y: 1 };
+            }
+            break;
+          case "a":
+            if (direction.x !== 1) {
+              direction = { x: -1, y: 0 };
+            }
+            break;
+          case "d":
+            if (direction.x !== -1) {
+              direction = { x: 1, y: 0 };
+            }
+            break;
+          default:
+            break;
+        }
+      }
+
+      // Also support space to restart mid-game if desired
+      if (e.code === "Space" && !isGameRunning) {
+        startGame();
+      }
+    });
+
+    // Show initial message
+    statusDisplay.textContent = "Press SPACE to start!";
+    statusDisplay.style.display = "block";
+  </script>
+</body>
+</html>
